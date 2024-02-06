@@ -655,6 +655,11 @@ MonoBehaviour:
           m_StringArgument: 
           m_BoolArgument: 0
         m_CallState: 2
+--- !u!4 &595159615 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 5329923641315466523, guid: 5bafd4e9c66ef69478665aedbceb04ea, type: 3}
+  m_PrefabInstance: {fileID: 683659620}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1001 &683659620
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -1996,6 +2001,54 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: -20, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
+--- !u!1 &1570807669
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1570807671}
+  - component: {fileID: 1570807670}
+  m_Layer: 0
+  m_Name: PoolManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1570807670
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1570807669}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8c7aa8421355f684e86dfac8ff866c13, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  pools:
+  - id: RegularBullets
+    prefab: {fileID: 5499000518942477700, guid: afaa644d1ca7d7a49ab46d4ef895565d, type: 3}
+    prewarm: 10
+--- !u!4 &1570807671
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1570807669}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1655192049
 GameObject:
   m_ObjectHideFlags: 0
@@ -12429,6 +12482,15 @@ MonoBehaviour:
   animator: {fileID: 361741126}
   animatorL: {fileID: 1465634155}
   animatorR: {fileID: 888496163}
+  shootDelay: 0.1
+  canonLeft: {fileID: 2092463522}
+  canonRight: {fileID: 341549179}
+  bulletType: RegularBullets
+  camRayLength: 100
+  pointerLayer:
+    serializedVersion: 2
+    m_Bits: 320
+  aimingPivot: {fileID: 595159615}
 --- !u!1 &2092463521
 GameObject:
   m_ObjectHideFlags: 0
@@ -12474,3 +12536,4 @@ SceneRoots:
   - {fileID: 213922291}
   - {fileID: 1960311752}
   - {fileID: 74761808}
+  - {fileID: 1570807671}

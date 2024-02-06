@@ -53,15 +53,37 @@ public class PlayerController : MonoBehaviour {
     public Animator animatorL;
     public Animator animatorR;
 
-    #endregion
+    [Header("Shooting")]
+    public float shootDelay = 0.5f;
+    public Transform canonLeft;
+    public Transform canonRight;
+    public string bulletType = "RegularBullets";
+
+    private float shootTime;
+    private bool leftCanon = true;
+
+    [Header("Aiming")]
+    public float camRayLength;
+    public LayerMask pointerLayer;
+    public Transform aimingPivot;
+
+    private Camera cameraMain;
+
     Collider[] colliderBuffer = new Collider[1];
+
+    #endregion
 
 
     #region Events
 
+    private void Start() {
+        cameraMain = Camera.main;
+    }
+
     private void Update() {
         _grounded = true;
 
+        AimingBehaviour();
         GroundCheck();
         CollisionPreDetection();
 
@@ -97,6 +119,10 @@ public class PlayerController : MonoBehaviour {
 
         if (Input.GetButtonDown("Dash")) {
             Dash();
+        }
+
+        if (Input.GetButton("Fire1")) {
+            Shoot();
         }
     }
 
@@ -195,6 +221,38 @@ public class PlayerController : MonoBehaviour {
 
     private void Dash() {
         if (_grounded) { rb.AddForce(transform.forward * jumpForce, ForceMode.Impulse); }
+    }
+
+    private void Shoot() {
+        if (Time.time < shootTime) {
+            return;
+        }
+
+        if (leftCanon) {
+            animator.SetTrigger("Shoot Left");
+
+            PoolManager.instance.Pull(bulletType, canonLeft.position, Quaternion.LookRotation(canonLeft.forward));
+        } else {
+
+            animator.SetTrigger("Shoot Right");
+
+            PoolManager.instance.Pull(bulletType, canonRight.position, Quaternion.LookRotation(canonRight.forward));
+        }
+
+        shootTime = Time.time + shootDelay;
+        leftCanon = !leftCanon;
+
+        animator.SetFloat("ShootSpeed", 1 / shootDelay);
+    }
+
+    private void AimingBehaviour() {
+        Ray camRay = Camera.main.ScreenPointToRay(Input.mousePosition);
+
+        RaycastHit groundHit = new RaycastHit();
+
+        if (Physics.Raycast(camRay, out groundHit, camRayLength, pointerLayer)) {
+            aimingPivot.position = new Vector3(groundHit.point.x, aimingPivot.position.y, groundHit.point.z);
+        }
     }
 
     #endregion

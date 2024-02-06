@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using System;
 
 public class Projectile : PoolEntity {
 
@@ -17,6 +18,9 @@ public class Projectile : PoolEntity {
 
     private float lifeTimeStamp;
 
+    public Action<Vector3> OnImpact;
+    public Action OnInitialize;
+
     private void Update() {
         if (lifeTimeStamp < Time.time && active) {
             ReturnPool();
@@ -32,6 +36,8 @@ public class Projectile : PoolEntity {
 
     public override void Initialize() {
         base.Initialize();
+
+        OnInitialize?.Invoke();
 
         collider.enabled = true;
         rb.isKinematic = false;
@@ -52,6 +58,8 @@ public class Projectile : PoolEntity {
     private void OnTriggerEnter(Collider other) {
         if ((shootableLayer & (1 << other.gameObject.layer)) != 0) {
 
+            OnImpact?.Invoke(transform.position);
+            ReturnPool();
         }
     }
 }
