@@ -1,65 +1,56 @@
-using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
 using System;
-
+using UnityEngine;
 public class Projectile : PoolEntity {
-
     [Header("Components")]
-    public Collider collider;
-    public Rigidbody rb;
+    public Collider col;
+    public Rigidbody rigidBody;
     public ParticleSystem trail;
-
     [Header("Projectile")]
-    public float damage = 10;
+    public int damage = 10;
     public float speed = 10f;
-    public float lifeTime = 5;
+    public float lifeTime = 5f;
+    private float lifeTimeStamp;
     public LayerMask shootableLayer;
 
-    private float lifeTimeStamp;
-
-    public Action<Vector3> OnImpact;
-    public Action OnInitialize;
-
+    public Action<Vector3> onImpact;
+    public Action onInitialize;
     private void Update() {
-        if (lifeTimeStamp < Time.time && active) {
+        if (lifeTimeStamp < Time.time && active) ReturnPool();
+    }
+    private void OnTriggerEnter(Collider other) {
+        // 11111000
+        // 10010010
+        // --------
+        // 10010000
+        // Si el resultado final fuera 0 completamente => significa que el layer no está contenido en la máscara
+        if ((shootableLayer & (1 << other.gameObject.layer)) != 0) {
+            if (other.TryGetComponent(out IDamageable<float> damageable)) {
+                damageable.TakeDamage(damage, transform.position);
+            }
+            onImpact?.Invoke(transform.position);
             ReturnPool();
         }
     }
-
-    [ContextMenu("Get Components")]
+    [ContextMenu("GetComponents")]
     public void GetComponents() {
-        collider = GetComponent<Collider>();
-        rb = GetComponent<Rigidbody>();
+        col = GetComponent<Collider>();
+        rigidBody = GetComponent<Rigidbody>();
         trail = GetComponentInChildren<ParticleSystem>();
     }
 
     public override void Initialize() {
         base.Initialize();
-
-        OnInitialize?.Invoke();
-
-        collider.enabled = true;
-        rb.isKinematic = false;
+        onInitialize?.Invoke();
+        col.enabled = true;
+        rigidBody.isKinematic = false;
         trail.Play();
-
-        rb.velocity = transform.forward * speed;
+        rigidBody.velocity = transform.forward * speed;
         lifeTimeStamp = Time.time + lifeTime;
     }
-
     public override void Deactivate() {
         base.Deactivate();
-
-        collider.enabled = false;
-        rb.isKinematic = true;
+        col.enabled = false;
+        rigidBody.isKinematic = true;
         trail.Stop();
-    }
-
-    private void OnTriggerEnter(Collider other) {
-        if ((shootableLayer & (1 << other.gameObject.layer)) != 0) {
-
-            OnImpact?.Invoke(transform.position);
-            ReturnPool();
-        }
     }
 }

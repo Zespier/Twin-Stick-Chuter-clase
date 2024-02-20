@@ -1,18 +1,23 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
+// Para usar los audio mixers
 using UnityEngine.Audio;
-
-public class SoundManager : MonoBehaviour {
-
+public class SoundManager : MonoBehaviour
+{
     public AudioMixer audioMixer;
-
-    public void SetSound(float volume) {
-        audioMixer.SetFloat("SoundsVolume", Mathf.Log10(volume) * 20);
+    /// <summary>
+    /// Configura el volumen del canal Sounds.
+    /// </summary>
+    /// <param name="volume"></param>
+    public void SetSound(float volume)
+    {
+        audioMixer.SetFloat("Sounds", Mathf.Log10(volume) * 20);
     }
-    
-    public void SetMusic(float volume) {
-        audioMixer.SetFloat("MusicVolume", Mathf.Log10(volume) * 20);
+    /// <summary>
+    /// Configura el volumen del canal Volume.
+    /// </summary>
+    /// <param name="volume"></param>
+    public void SetMusic(float volume)
+    {
+        audioMixer.SetFloat("Music", Mathf.Log10(volume) * 20);
     }
-
 }

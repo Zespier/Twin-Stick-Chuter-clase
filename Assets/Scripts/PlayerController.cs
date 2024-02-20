@@ -1,23 +1,20 @@
-using System.Collections;
-using System.Collections.Generic;
-using UnityEditor.Experimental.GraphView;
+using System;
+using System.CodeDom.Compiler;
 using UnityEngine;
+using UnityEngine.Rendering.UI;
 
-public class PlayerController : MonoBehaviour {
-
-    #region Variables
-
+public class PlayerController : MonoBehaviour
+{
+    #region VARIABLES
     public bool showGizmos = false;
-
     [Header("Player Movement")]
     public float movementSpeed = 8f;
     public float rotationSpeed = 14f;
     public float acceleration = 30f;
-
-    private Vector3 _direction;
-    private Vector3 _desiredVelocity;
-    private float _horizontal = 0f;
-    private float _vertical = 0f;
+    private Vector3 direction = Vector3.zero;
+    private Vector3 desiredVelocity = Vector3.zero;
+    private float horizontal = 0f;
+    private float vertical = 0f;
 
     [Header("Jump")]
     public float jumpForce = 10f;
@@ -26,24 +23,24 @@ public class PlayerController : MonoBehaviour {
     public float dashForce = 10f;
 
     [Header("Physics")]
-    public Rigidbody rb;
+    public Rigidbody rigidBody;
     public LayerMask groundLayer;
     public Transform groundCheck;
+    private bool grounded;
     public Vector3 groundCheckSize;
-
-    private bool _grounded;
+    private Collider[] colliderBuffer;
 
     [Header("Collision pre-detection")]
     public LayerMask checkLayer;
     public Transform checkPoint;
     public float checkSize = 0.3f;
-    [Range(0, 3)] public float checkDistance = 2;
-    public bool _walled;
+    [Range(0, 3)] public float checkDistance = 2f;
+    public bool walled;
 
     [Header("Engine Sound")]
     public AudioSource audioSource;
     public float engineBasePitch = 0.4f;
-    public float engineMaxPitch = 3f;
+    public float engineMaxSpeed = 3f;
 
     [Header("Effects")]
     public ParticleSystem[] dustParticles;
@@ -55,206 +52,214 @@ public class PlayerController : MonoBehaviour {
 
     [Header("Shooting")]
     public float shootDelay = 0.5f;
-    public Transform canonLeft;
-    public Transform canonRight;
+    private float shootTime = 0;
+    private bool leftCannon = true;
+    public Transform cannonLeft;
+    public Transform cannonRight;
+    // id de la pool de la cual cogeremos la bala
     public string bulletType = "RegularBullets";
 
-    private float shootTime;
-    private bool leftCanon = true;
-
     [Header("Aiming")]
-    public float camRayLength;
+    public float camRayLenght;
     public LayerMask pointerLayer;
     public Transform aimingPivot;
-
     private Camera cameraMain;
-
-    Collider[] colliderBuffer = new Collider[1];
-
     #endregion
 
-
-    #region Events
-
-    private void Start() {
-        cameraMain = Camera.main;
-    }
-
-    private void Update() {
-        _grounded = true;
-
-        AimingBehaviour();
-        GroundCheck();
-        CollisionPreDetection();
-
-        Controls();
-        Movement();
-        MovementFX();
-
-        AnimatorFeed();
-    }
-
-    private void OnDrawGizmos() {
-        if (!showGizmos) { return; }
-
+    #region EVENTS
+    private void OnDrawGizmos()
+    {
+        if (!showGizmos) return;
         Gizmos.color = Color.blue;
         Gizmos.DrawWireSphere(checkPoint.position, checkSize);
-
         Gizmos.color = Color.red;
         Gizmos.DrawWireCube(groundCheck.position, groundCheckSize);
     }
-
+    private void Start()
+    {
+        // Solo vamos a comprobar is es mayor que 0, por tanto, no necesitamos más capacidad
+        colliderBuffer = new Collider[1];
+        cameraMain = Camera.main;
+    }
+    private void Update()
+    {
+        GroundCheck();
+        CollisionPreDetection();
+        Controls();
+        Movement();
+        MovementFX();
+        AnimatorFeed();
+        AimingBehaviour();
+    }
     #endregion
 
-
-    #region Methods
-
-    private void Controls() {
-        _horizontal = Input.GetAxis("Horizontal");
-        _vertical = Input.GetAxis("Vertical");
-
-        if (Input.GetButtonDown("Jump")) {
-            Jump();
-        }
-
-        if (Input.GetButtonDown("Dash")) {
-            Dash();
-        }
-
-        if (Input.GetButton("Fire1")) {
-            Shoot();
-        }
+    #region METHODS
+    /// <summary>
+    /// Recuperamos la información de los inputs.
+    /// </summary>
+    private void Controls()
+    {
+        // Recuperamos la información de los axes de control
+        horizontal = Input.GetAxis("Horizontal");
+        vertical = Input.GetAxis("Vertical");
+        if (Input.GetButtonDown("Jump")) Jump();
+        if (Input.GetButtonDown("Dash")) Dash();
+        if (Input.GetButton("Fire1")) Shoot();
     }
-
-    private void Movement() {
-
-        _direction.Set(_horizontal, 0f, _vertical);
-
-        _direction = Vector3.ClampMagnitude(_direction, 1f);
-
-        _desiredVelocity = _direction * movementSpeed;
-
-        Vector3 temp = transform.position + _direction * checkDistance;
-        temp.y = checkPoint.position.y;
-        checkPoint.position = temp;
-
-        if (_walled) { _desiredVelocity = Vector3.zero; }
-
-        if ((_horizontal != 0 || _vertical != 0) && _grounded && !_walled) {
-
-            rb.velocity = Vector3.MoveTowards(rb.velocity, _desiredVelocity, Time.deltaTime * acceleration);
-
-            if (showGizmos) {
-                Debug.DrawRay(transform.position, rb.velocity);
-            }
-
-            transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(_desiredVelocity), Time.deltaTime * rotationSpeed);
+    /// <summary>
+    /// Realiza el desplazamiento del tanque.
+    /// </summary>
+    private void Movement()
+    {
+        // Componemos el vector de dirección deseado a partir del input
+        direction.Set(horizontal, 0f, vertical);
+        // Para asegurarnos que las diagonales no tienen una magnitud superior a 1, "clampeamos" su valor
+        direction = Vector3.ClampMagnitude(direction, 1f);
+        // Calculamos la velocidad deseada en base a la dirección y la velocidad máxima
+        desiredVelocity = direction * movementSpeed;
+        Vector3 tmp = transform.position + direction * checkDistance;
+        // respetamos la altura a la que ya estuviera el checkpoint configurado
+        tmp.y = checkPoint.position.y;
+        // Movemos el checkpoint a su posición final
+        checkPoint.position = tmp;
+        if (walled) desiredVelocity = Vector3.zero;
+        // Solo realizaremos desplazamiento y rotación, si el input es distinto de 0
+        if ((horizontal != 0 || vertical != 0) && grounded && !walled)
+        {
+            // Aplicamos la velocidad deseada, aumentando frame a frame en base a la aceleración
+            rigidBody.velocity = Vector3.MoveTowards(rigidBody.velocity,
+                                                     desiredVelocity,
+                                                     Time.deltaTime * acceleration);
+            // Debug ray para ver la dirección de velocidad del rigidbody
+            if (showGizmos) Debug.DrawRay(transform.position, rigidBody.velocity);
+            // Rotamos el tanque para que mire hacia la dirección que apunta la velocidad deseada
+            transform.rotation = Quaternion.Slerp(transform.rotation,
+                                                  Quaternion.LookRotation(desiredVelocity),
+                                                  Time.deltaTime * rotationSpeed);
         }
-
-        if (_horizontal == 0 && _vertical == 0) { rb.angularVelocity = Vector3.zero; }
-
+        // En caso de no existir input, paramos la rotación del tanque
+        if ((horizontal == 0 && vertical == 0) || walled) rigidBody.angularVelocity = Vector3.zero;
     }
-
-    private void MovementFX() {
-        //audioSource.pitch = Mathf.Clamp(engineBasePitch + rb.velocity.magnitude, engineBasePitch, engineMaxPitch);
-        audioSource.pitch = Mathf.Lerp(engineBasePitch, engineMaxPitch, rb.velocity.magnitude / movementSpeed);
-
-        if (_grounded) {
-            foreach (ParticleSystem ps in dustParticles) {
-                if (!ps.isPlaying) {
-                    ps.Play();
-                }
+    /// <summary>
+    /// Efectos especiales visuales y sonoros.
+    /// </summary>
+    private void MovementFX()
+    {
+        // Modificamos el pitch del motor de forma dinámica en base a la velocidad del rigidbody
+        audioSource.pitch = Mathf.Clamp(engineBasePitch + rigidBody.velocity.magnitude,
+                                        engineBasePitch,
+                                        engineMaxSpeed);
+        // Si estamos en contacto con el suelo
+        if (grounded)
+        {
+            // recorremos todos los sistemas de partículas de polvo
+            foreach (ParticleSystem ps in dustParticles)
+            {
+                // Si no se reproducen, lo hacemos
+                if (!ps.isPlaying) ps.Play();
             }
-        } else {
-            foreach (ParticleSystem ps in dustParticles) {
+        }
+        else
+        {
+            foreach (ParticleSystem ps in dustParticles)
+            {
                 ps.Stop();
             }
         }
     }
+    /// <summary>
+    /// Alimenta la información para los animators.
+    /// </summary>
+    private void AnimatorFeed()
+    {
+        animator.SetBool("Is Grounded", grounded);
+        animatorL.SetBool("Is Grounded", grounded);
+        animatorR.SetBool("Is Grounded", grounded);
 
-    private void AnimatorFeed() {
-        animator.SetBool("Is Grounded", _grounded);
-        animatorL.SetBool("Is Grounded", _grounded);
-        animatorR.SetBool("Is Grounded", _grounded);
+        animator.SetFloat("Forward Speed", rigidBody.velocity.magnitude);
+        animatorR.SetFloat("Forward Speed", rigidBody.velocity.magnitude);
+        animatorL.SetFloat("Forward Speed", rigidBody.velocity.magnitude);
 
-        animator.SetFloat("Forward Speed", rb.velocity.magnitude);
-        animatorL.SetFloat("Forward Speed", rb.velocity.magnitude);
-        animatorR.SetFloat("Forward Speed", rb.velocity.magnitude);
+        animator.SetFloat("Turn", rigidBody.angularVelocity.magnitude);
 
-        animator.SetFloat("Turn", rb.angularVelocity.magnitude);
-
-        animator.SetFloat("Velocity V", rb.velocity.y);
-        animatorL.SetFloat("Velocity V", rb.velocity.y);
-        animatorR.SetFloat("Velocity V", rb.velocity.y);
-
-        float maxVelocity = 10;
-
-        if (rb.velocity.magnitude > maxVelocity) {
-
-        }
-
-        if (rb.velocity.sqrMagnitude > maxVelocity * maxVelocity) {
-
-        }
+        animator.SetFloat("Velocity V", rigidBody.velocity.y);
+        animatorR.SetFloat("Velocity V", rigidBody.velocity.y);
+        animatorL.SetFloat("Velocity V", rigidBody.velocity.y);
     }
-
-    private void GroundCheck() {
+    /// <summary>
+    /// Comprueba si hay contacto con el suelo.
+    /// </summary>
+    private void GroundCheck()
+    {
         colliderBuffer[0] = null;
-
-        Physics.OverlapBoxNonAlloc(groundCheck.position, groundCheckSize / 2f, colliderBuffer, transform.rotation, groundLayer);
-
-        _grounded = colliderBuffer[0] != null;
+        // Comprobamos si hay contacto con el suelo mediante un overlap nonAlloc, para consumir menos recursos 
+        // ya que esta comprobación se hará de forma continua
+        Physics.OverlapBoxNonAlloc(groundCheck.position,
+                                   groundCheckSize / 2,
+                                   colliderBuffer,
+                                   transform.rotation,
+                                   groundLayer);
+        // Si el valor del primer elemento del buffer es distinto de null, consideramos que estamos tocando el suelo
+        grounded = colliderBuffer[0] != null;
     }
-
-    private void CollisionPreDetection() {
+    /// <summary>
+    /// Detecta si hay un collider del layer indicado en contacto con el checker de colisión de desplazamiento.
+    /// </summary>
+    private void CollisionPreDetection()
+    {
         colliderBuffer[0] = null;
-
-        Physics.OverlapSphereNonAlloc(checkPoint.position, checkSize, colliderBuffer, checkLayer);
-
-        _walled = colliderBuffer[0] != null;
+        Physics.OverlapSphereNonAlloc(checkPoint.position,
+                                      checkSize,
+                                      colliderBuffer,
+                                      checkLayer);
+        walled = colliderBuffer[0] != null;
     }
-
-    private void Jump() {
-        if (_grounded) { rb.AddForce(Vector3.up * jumpForce, ForceMode.Impulse); }
-
+    /// <summary>
+    /// Aplica una fuerza vertical para saltar.
+    /// </summary>
+    private void Jump()
+    {
+        // Si estamos en contacto con el suelo, aplicamos una fuerza vertical de tipo impulso
+        if (grounded) rigidBody.AddForce(Vector3.up * jumpForce, ForceMode.Impulse);
     }
-
-    private void Dash() {
-        if (_grounded) { rb.AddForce(transform.forward * jumpForce, ForceMode.Impulse); }
+    /// <summary>
+    /// Aplica una fuerza en la dirección de movimiento.
+    /// </summary>
+    private void Dash()
+    {
+        if (grounded) rigidBody.AddForce(transform.forward * dashForce, ForceMode.Impulse);
     }
-
-    private void Shoot() {
-        if (Time.time < shootTime) {
-            return;
-        }
-
-        if (leftCanon) {
+    /// <summary>
+    /// Dispara el cañón L o R
+    /// </summary>
+    private void Shoot()
+    {
+        if (Time.time < shootTime) return;
+        if (leftCannon)
+        {
             animator.SetTrigger("Shoot Left");
-
-            PoolManager.instance.Pull(bulletType, canonLeft.position, Quaternion.LookRotation(canonLeft.forward));
-        } else {
-
-            animator.SetTrigger("Shoot Right");
-
-            PoolManager.instance.Pull(bulletType, canonRight.position, Quaternion.LookRotation(canonRight.forward));
+            PoolManager.instance.Pull(bulletType, cannonLeft.position, Quaternion.LookRotation(cannonLeft.forward));
         }
-
+        else
+        {
+            animator.SetTrigger("Shoot Right");
+            PoolManager.instance.Pull(bulletType, cannonRight.position, Quaternion.LookRotation(cannonRight.forward));
+        }
         shootTime = Time.time + shootDelay;
-        leftCanon = !leftCanon;
-
+        leftCannon = !leftCannon;
         animator.SetFloat("ShootSpeed", 1 / shootDelay);
     }
-
-    private void AimingBehaviour() {
-        Ray camRay = Camera.main.ScreenPointToRay(Input.mousePosition);
-
+    /// <summary>
+    /// Apuntado de la torreta hacia la posición del cursor en pantalla.
+    /// </summary>
+    private void AimingBehaviour()
+    {
+        Ray camRay = cameraMain.ScreenPointToRay(Input.mousePosition);
         RaycastHit groundHit = new RaycastHit();
-
-        if (Physics.Raycast(camRay, out groundHit, camRayLength, pointerLayer)) {
+        if (Physics.Raycast(camRay, out groundHit, camRayLenght, pointerLayer))
+        {
             aimingPivot.position = new Vector3(groundHit.point.x, aimingPivot.position.y, groundHit.point.z);
         }
     }
-
     #endregion
-
 }
