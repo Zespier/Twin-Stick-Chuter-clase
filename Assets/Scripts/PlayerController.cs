@@ -3,8 +3,7 @@ using System.CodeDom.Compiler;
 using UnityEngine;
 using UnityEngine.Rendering.UI;
 
-public class PlayerController : MonoBehaviour
-{
+public class PlayerController : MonoBehaviour {
     #region VARIABLES
     public bool showGizmos = false;
     [Header("Player Movement")]
@@ -52,8 +51,6 @@ public class PlayerController : MonoBehaviour
 
     [Header("Shooting")]
     public float shootDelay = 0.5f;
-    private float shootTime = 0;
-    private bool leftCannon = true;
     public Transform cannonLeft;
     public Transform cannonRight;
     // id de la pool de la cual cogeremos la bala
@@ -63,26 +60,33 @@ public class PlayerController : MonoBehaviour
     public float camRayLenght;
     public LayerMask pointerLayer;
     public Transform aimingPivot;
+
+    [Header("Missiles")]
+    public Transform[] missileShootingPoints;
+    public float missileDelay = 0.5f;
+    public Vector3 missileAimOffset = new Vector3(0f, -2f, 0f);
+
+    private float shootTime = 0;
+    private bool leftCannon = true;
     private Camera cameraMain;
+    private float missileTime = 0;
+
     #endregion
 
     #region EVENTS
-    private void OnDrawGizmos()
-    {
+    private void OnDrawGizmos() {
         if (!showGizmos) return;
         Gizmos.color = Color.blue;
         Gizmos.DrawWireSphere(checkPoint.position, checkSize);
         Gizmos.color = Color.red;
         Gizmos.DrawWireCube(groundCheck.position, groundCheckSize);
     }
-    private void Start()
-    {
+    private void Start() {
         // Solo vamos a comprobar is es mayor que 0, por tanto, no necesitamos más capacidad
         colliderBuffer = new Collider[1];
         cameraMain = Camera.main;
     }
-    private void Update()
-    {
+    private void Update() {
         GroundCheck();
         CollisionPreDetection();
         Controls();
@@ -97,20 +101,19 @@ public class PlayerController : MonoBehaviour
     /// <summary>
     /// Recuperamos la información de los inputs.
     /// </summary>
-    private void Controls()
-    {
+    private void Controls() {
         // Recuperamos la información de los axes de control
         horizontal = Input.GetAxis("Horizontal");
         vertical = Input.GetAxis("Vertical");
         if (Input.GetButtonDown("Jump")) Jump();
         if (Input.GetButtonDown("Dash")) Dash();
         if (Input.GetButton("Fire1")) Shoot();
+        if (Input.GetButton("Fire2")) ShootMissiles();
     }
     /// <summary>
     /// Realiza el desplazamiento del tanque.
     /// </summary>
-    private void Movement()
-    {
+    private void Movement() {
         // Componemos el vector de dirección deseado a partir del input
         direction.Set(horizontal, 0f, vertical);
         // Para asegurarnos que las diagonales no tienen una magnitud superior a 1, "clampeamos" su valor
@@ -124,8 +127,7 @@ public class PlayerController : MonoBehaviour
         checkPoint.position = tmp;
         if (walled) desiredVelocity = Vector3.zero;
         // Solo realizaremos desplazamiento y rotación, si el input es distinto de 0
-        if ((horizontal != 0 || vertical != 0) && grounded && !walled)
-        {
+        if ((horizontal != 0 || vertical != 0) && grounded && !walled) {
             // Aplicamos la velocidad deseada, aumentando frame a frame en base a la aceleración
             rigidBody.velocity = Vector3.MoveTowards(rigidBody.velocity,
                                                      desiredVelocity,
@@ -143,26 +145,20 @@ public class PlayerController : MonoBehaviour
     /// <summary>
     /// Efectos especiales visuales y sonoros.
     /// </summary>
-    private void MovementFX()
-    {
+    private void MovementFX() {
         // Modificamos el pitch del motor de forma dinámica en base a la velocidad del rigidbody
         audioSource.pitch = Mathf.Clamp(engineBasePitch + rigidBody.velocity.magnitude,
                                         engineBasePitch,
                                         engineMaxSpeed);
         // Si estamos en contacto con el suelo
-        if (grounded)
-        {
+        if (grounded) {
             // recorremos todos los sistemas de partículas de polvo
-            foreach (ParticleSystem ps in dustParticles)
-            {
+            foreach (ParticleSystem ps in dustParticles) {
                 // Si no se reproducen, lo hacemos
                 if (!ps.isPlaying) ps.Play();
             }
-        }
-        else
-        {
-            foreach (ParticleSystem ps in dustParticles)
-            {
+        } else {
+            foreach (ParticleSystem ps in dustParticles) {
                 ps.Stop();
             }
         }
@@ -170,8 +166,7 @@ public class PlayerController : MonoBehaviour
     /// <summary>
     /// Alimenta la información para los animators.
     /// </summary>
-    private void AnimatorFeed()
-    {
+    private void AnimatorFeed() {
         animator.SetBool("Is Grounded", grounded);
         animatorL.SetBool("Is Grounded", grounded);
         animatorR.SetBool("Is Grounded", grounded);
@@ -189,8 +184,7 @@ public class PlayerController : MonoBehaviour
     /// <summary>
     /// Comprueba si hay contacto con el suelo.
     /// </summary>
-    private void GroundCheck()
-    {
+    private void GroundCheck() {
         colliderBuffer[0] = null;
         // Comprobamos si hay contacto con el suelo mediante un overlap nonAlloc, para consumir menos recursos 
         // ya que esta comprobación se hará de forma continua
@@ -205,8 +199,7 @@ public class PlayerController : MonoBehaviour
     /// <summary>
     /// Detecta si hay un collider del layer indicado en contacto con el checker de colisión de desplazamiento.
     /// </summary>
-    private void CollisionPreDetection()
-    {
+    private void CollisionPreDetection() {
         colliderBuffer[0] = null;
         Physics.OverlapSphereNonAlloc(checkPoint.position,
                                       checkSize,
@@ -217,31 +210,25 @@ public class PlayerController : MonoBehaviour
     /// <summary>
     /// Aplica una fuerza vertical para saltar.
     /// </summary>
-    private void Jump()
-    {
+    private void Jump() {
         // Si estamos en contacto con el suelo, aplicamos una fuerza vertical de tipo impulso
         if (grounded) rigidBody.AddForce(Vector3.up * jumpForce, ForceMode.Impulse);
     }
     /// <summary>
     /// Aplica una fuerza en la dirección de movimiento.
     /// </summary>
-    private void Dash()
-    {
+    private void Dash() {
         if (grounded) rigidBody.AddForce(transform.forward * dashForce, ForceMode.Impulse);
     }
     /// <summary>
     /// Dispara el cañón L o R
     /// </summary>
-    private void Shoot()
-    {
+    private void Shoot() {
         if (Time.time < shootTime) return;
-        if (leftCannon)
-        {
+        if (leftCannon) {
             animator.SetTrigger("Shoot Left");
             PoolManager.instance.Pull(bulletType, cannonLeft.position, Quaternion.LookRotation(cannonLeft.forward));
-        }
-        else
-        {
+        } else {
             animator.SetTrigger("Shoot Right");
             PoolManager.instance.Pull(bulletType, cannonRight.position, Quaternion.LookRotation(cannonRight.forward));
         }
@@ -252,14 +239,31 @@ public class PlayerController : MonoBehaviour
     /// <summary>
     /// Apuntado de la torreta hacia la posición del cursor en pantalla.
     /// </summary>
-    private void AimingBehaviour()
-    {
+    private void AimingBehaviour() {
         Ray camRay = cameraMain.ScreenPointToRay(Input.mousePosition);
         RaycastHit groundHit = new RaycastHit();
-        if (Physics.Raycast(camRay, out groundHit, camRayLenght, pointerLayer))
-        {
+        if (Physics.Raycast(camRay, out groundHit, camRayLenght, pointerLayer)) {
             aimingPivot.position = new Vector3(groundHit.point.x, aimingPivot.position.y, groundHit.point.z);
         }
     }
+
+    private void ShootMissiles() {
+
+        if (Time.time < missileTime) { return; }
+
+        foreach (Transform point in missileShootingPoints) {
+            Missile temp = PoolManager.instance.Pull("Missiles", point.position, Quaternion.LookRotation(point.forward)) as Missile;
+
+            if (temp != null) {
+                temp.startPosition = point.position;
+                temp.targetPosition = aimingPivot.position + missileAimOffset;
+                temp.shooterPosition = transform.position;
+            }
+        }
+
+        missileTime = Time.time + missileDelay;
+
+    }
+
     #endregion
 }

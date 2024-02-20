@@ -4,7 +4,8 @@ using UnityEngine;
 using UnityEngine.UI;
 using System;
 using UnityEngine.Events;
-public class PlayerHealth : MonoBehaviour, IDamageable<float> {
+public class PlayerHealth : MonoBehaviour, IDamageable<float>
+{
     public float maxHealth = 100;
     public float currentHealth;
     [Header("HUD")]
@@ -18,35 +19,69 @@ public class PlayerHealth : MonoBehaviour, IDamageable<float> {
     public PlayerController playerController;
     public bool damaged;
     public bool isDead;
-    private void Start() {
+    private void Start()
+    {
         currentHealth = maxHealth;
     }
-    private void Update() {
+    private void Update()
+    {
         FlashDamage();
     }
-    public bool IsDead() {
+    /// <summary>
+    /// Devuelve true si el jugador está muerto.
+    /// </summary>
+    /// <returns></returns>
+    public bool IsDead()
+    {
         return currentHealth <= 0;
     }
     [ContextMenu("Test take damage")]
     public void TestTakeDamage() => TakeDamage(30);
-    public void TakeDamage(float damage, Vector3 impactPosition = default) {
+    /// <summary>
+    /// Aplica el daño recibido como parámetro.
+    /// </summary>
+    /// <param name="damage"></param>
+    /// <param name="impactPosition"></param>
+    /// <exception cref="NotImplementedException"></exception>
+    public void TakeDamage(float damage, Vector3 impactPosition = default)
+    {
         if (isDead) return;
         damaged = true;
         currentHealth -= damage;
         healthBar.fillAmount = currentHealth / maxHealth;
         if (IsDead()) Death();
     }
-    private void Death() {
+    /// <summary>
+    /// Método que se encargará de realizar las acciones necesarias para la muerte del jugador
+    /// </summary>
+    private void Death()
+    {
+        // indicamos que el jugador está muerto
         isDead = true;
+        // verificamos si hay alguien suscrito al evento de dead, si es así, lo invocamos
         OnPlayerDead?.Invoke();
+        // unity event propio para gestión de acciones y efectos
         OnDead.Invoke();
+        // desactivamos el script que gestiona el movimiento del jugador
+        // esto mismo lo podríamos hacer directamente en los unity events
         playerController.enabled = false;
     }
-    private void FlashDamage() {
-        if (damaged) {
+    /// <summary>
+    /// Gestiona la imagen de daño mostrada al jugador
+    /// </summary>
+    private void FlashDamage()
+    {
+        // Si se ha dañado en este ciclo
+        if (damaged)
+        {
+            // Aplicamos el color de daño
             damageImage.color = flashColor;
+            // reiniciamos la variable para la siguiente comprobación de daño
             damaged = true;
-        } else {
+        }
+        else
+        {
+            // si no es dañado nuevamente, de forma progresiva iremos retirando la imagen de daño
             damageImage.color = Color.Lerp(damageImage.color, Color.clear, flashSpeed * Time.deltaTime);
         }
     }

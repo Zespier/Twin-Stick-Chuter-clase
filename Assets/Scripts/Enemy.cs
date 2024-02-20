@@ -1,8 +1,8 @@
 using UnityEngine;
 using UnityEngine.AI;
 using UnityEngine.Events;
-
-public class Enemy : PoolEntity {
+public class Enemy : PoolEntity
+{
     public string targetTagName = "Player";
     public Transform target;
     public NavMeshAgent nav;
@@ -15,42 +15,56 @@ public class Enemy : PoolEntity {
     public UnityEvent OnInitialize;
     public UnityEvent OnDeactivate;
 
-    private void OnEnable() {
-        PlayerHealth.OnPlayerDead += PlayerIsDead;
-
-    }
-
-    private void Start() {
+    private void Start()
+    {
         CheckForTarget(targetTagName);
     }
-
-    private void OnDisable() {
+    private void OnEnable()
+    {
+        PlayerHealth.OnPlayerDead += PlayerIsDead;
+    }
+    private void OnDisable()
+    {
         PlayerHealth.OnPlayerDead -= PlayerIsDead;
     }
-
-    public void CheckForTarget(string tag) {
+    /// <summary>
+    /// Busca el transform del objetivo con el tag indicado.
+    /// </summary>
+    /// <param name="tag"></param>
+    public void CheckForTarget(string tag)
+    {
+        // recuperamos todos los objetos de la escena con el tag indicado
         GameObject[] possibleTargets = GameObject.FindGameObjectsWithTag(tag);
-        foreach (GameObject possibleTarget in possibleTargets) {
+        // recorremos todos los objetivos posibles
+        foreach (GameObject possibleTarget in possibleTargets)
+        {
+            // si no hay ninguno previamente seleccionado
             if (target == null) target = possibleTarget.transform;
-            else if (Vector3.Distance(gameObject.transform.position, target.position) >
-                        Vector3.Distance(gameObject.transform.position, possibleTarget.transform.position)) {
+            // comprobamos si el targert previo se encuentra a una distancia mayor que el posible target actual
+            else if (Vector3.Distance(gameObject.transform.position, target.position) > 
+                        Vector3.Distance(gameObject.transform.position, possibleTarget.transform.position))
+            {
                 target = possibleTarget.transform;
             }
         }
     }
-
-    public void PlayerIsDead() {
+    /// <summary>
+    /// Método para reaccionar a la muerte del jugador, pasando la máquina de estados a Idle
+    /// </summary>
+    public void PlayerIsDead()
+    {
         animator.Play("Idle");
     }
-
-    public override void Initialize() {
+    public override void Initialize()
+    {
         base.Initialize();
+        // para asegurar que se posiciona corretamente en el navmesh al sacarlo de la pool
         nav.Warp(transform.position);
-        OnInitialize.Invoke();
+        OnInitialize?.Invoke();
     }
-
-    public override void Deactivate() {
+    public override void Deactivate()
+    {
         base.Deactivate();
-        OnDeactivate.Invoke();
+        OnDeactivate?.Invoke();
     }
 }
