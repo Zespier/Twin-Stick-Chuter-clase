@@ -22,6 +22,8 @@ public class Missile : PoolEntity {
     public UnityEvent OnImpact;
     public UnityEvent OnDeactivate;
 
+    public ShakeScriptable shakeProfile;
+
     private void Update() {
         if (lifeCounter < -1 && active) {
             ReturnPool();
@@ -46,6 +48,8 @@ public class Missile : PoolEntity {
             }
 
             targetPosition = transform.position;
+
+            CinemachineShake.instance.StartShake(shakeProfile);
 
             OnImpact?.Invoke();
 

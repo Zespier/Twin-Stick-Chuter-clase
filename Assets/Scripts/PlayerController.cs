@@ -71,6 +71,8 @@ public class PlayerController : MonoBehaviour {
     private Camera cameraMain;
     private float missileTime = 0;
 
+    public static Action<float> OnShootMissile;
+
     #endregion
 
     #region EVENTS
