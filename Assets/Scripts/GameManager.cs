@@ -20,6 +20,8 @@ public class GameManager : MonoBehaviour {
     private int remainingEnemies;
     public int currentWave = 0;
     private float spawnTimer = 0f;
+    public int maxEnemiesOnScene = 15;
+    private int enemiesOnScene = 0;
 
     public static GameManager instance;
     private void Awake() {
@@ -37,12 +39,12 @@ public class GameManager : MonoBehaviour {
     private void Update() {
         if (spawnTimer < spawnDelay) { spawnTimer += Time.deltaTime; }
 
-        if (waveEnemies > 0 && spawnTimer > spawnDelay) {
+        if (waveEnemies > 0 && spawnTimer > spawnDelay && enemiesOnScene < maxEnemiesOnScene) {
             GenerateEnemy(enemyList);
             spawnTimer = 0;
         }
 
-        if (remainingEnemies<=0) {
+        if (remainingEnemies <= 0) {
             NewWave();
         }
     }
@@ -63,10 +65,12 @@ public class GameManager : MonoBehaviour {
         PoolManager.instance.Pull(enemyPool[randomEnemy], spawnPoints[randomSpawn].position, Quaternion.identity);
 
         waveEnemies--;
+        enemiesOnScene++;
     }
 
     public void EnemyDead() {
         remainingEnemies--;
+        enemiesOnScene++;
     }
 
     public void NewWave() {
@@ -75,5 +79,7 @@ public class GameManager : MonoBehaviour {
         waveAnimator.SetTrigger("Show");
         waveEnemies = currentWave * waveEnemyNumberMultiplier;
         remainingEnemies = waveEnemies;
+
+        enemiesOnScene = 0;
     }
 }
